@@ -1,5 +1,5 @@
 """
-Bước 6: Ứng dụng mở rộng — Tái tạo ảnh & Khử nhiễu bằng Phép chiếu vuông góc
+Bước 6: Ứng dụng mở rộng — Tái tạo ảnh & Làm mờ ảnh bằng Phép chiếu vuông góc
 ================================================================================
 Hai ứng dụng này minh họa sức mạnh của phép chiếu vuông góc NGOÀI bài toán
 nhận dạng khuôn mặt, đáp ứng yêu cầu "ứng dụng trong nhiều lĩnh vực" của đề.
@@ -12,11 +12,14 @@ Cả hai đều dùng cùng một phép chiếu:
     Câu hỏi  : cần bao nhiêu Eigenfaces để tái tạo gần đúng ảnh gốc?
     Chỉ số   : MSE (càng nhỏ càng tốt) và PSNR (càng lớn càng tốt).
 
-Ứng dụng 2 — Khử nhiễu ảnh (Image Denoising via Low-rank Projection):
-    Ý tưởng  : nhiễu trải đều mọi hướng trong R^p, còn tín hiệu (khuôn mặt)
-                tập trung theo k hướng Eigenface đầu tiên.
-                → Chiếu về không gian Eigenface giữ lại tín hiệu, loại bỏ nhiễu.
-    Chỉ số   : PSNR tăng sau khi khử nhiễu so với ảnh bị nhiễu.
+Ứng dụng 2 — Làm mờ ảnh (Image Blurring):
+    Ý tưởng  : các eigenface đầu tiên (eigenvalue lớn) nắm bắt các đặc trưng
+                tần số thấp (cấu trúc tổng thể của khuôn mặt), trong khi các
+                eigenface sau nắm bắt chi tiết tần số cao (cạnh, nếp nhăn, mắt...).
+                Việc tái tạo ảnh chỉ với k eigenface đầu tiên hoạt động như
+                một bộ lọc thông thấp (low-pass filter): loại bỏ chi tiết
+                tần số cao và gây ra hiệu ứng làm mờ. Mức độ mờ tăng khi k giảm.
+    Chỉ số   : MSE và PSNR giữa ảnh gốc và ảnh đã làm mờ theo từng k.
 
 Công thức:
     MSE  = (1/p) · Σ (x̂_i − x_i)²
@@ -26,7 +29,7 @@ Tài liệu tham khảo:
     [1] Turk & Pentland (1991) — Eigenfaces for Recognition.
     [2] Jolliffe, I. T. (2002). "Principal Component Analysis." 2nd ed. Springer.
     [3] Gonzalez & Woods (2018). "Digital Image Processing." 4th ed. Pearson.
-        (định nghĩa PSNR, MSE trong xử lý ảnh số)
+        (định nghĩa PSNR, MSE và bộ lọc thông thấp trong xử lý ảnh số)
 """
 
 from __future__ import annotations
@@ -35,7 +38,6 @@ import os
 import sys
 import numpy as np
 import matplotlib.pyplot as plt
-import matplotlib.gridspec as gridspec
 
 # Thêm thư mục gốc vào sys.path để import các module trong src/
 _ROOT = os.path.dirname(os.path.abspath(__file__))
@@ -48,12 +50,12 @@ sys.path.insert(0, _ROOT)
 
 def mse(x_original: np.ndarray, x_reconstructed: np.ndarray) -> float:
     """
-    Mean Squared Error giữa ảnh gốc và ảnh tái tạo/khử nhiễu.
+    Mean Squared Error giữa ảnh gốc và ảnh tái tạo (hoặc đã làm mờ).
 
     MSE = (1/p) · Σᵢ (x̂ᵢ − xᵢ)²
 
     MSE = 0  →  tái tạo hoàn hảo.
-    MSE tăng khi k nhỏ (nén mạnh) hoặc nhiễu lớn.
+    MSE tăng khi k nhỏ (nén mạnh / mờ nhiều) — mất nhiều chi tiết tần số cao.
     """
     return float(np.mean((x_original - x_reconstructed) ** 2))
 
@@ -69,7 +71,7 @@ def psnr(x_original: np.ndarray, x_reconstructed: np.ndarray,
         PSNR > 40 dB  : chất lượng rất tốt (khó phân biệt với gốc)
         30–40 dB      : chất lượng tốt
         20–30 dB      : chất lượng chấp nhận được
-        < 20 dB       : chất lượng kém (nhiễu rõ ràng)
+        < 20 dB       : chất lượng kém (sai khác rõ ràng so với ảnh gốc)
 
     Nếu MSE = 0, trả về inf (tái tạo hoàn hảo).
     """
@@ -82,23 +84,6 @@ def psnr(x_original: np.ndarray, x_reconstructed: np.ndarray,
 # ==============================================================================
 # TIỆN ÍCH
 # ==============================================================================
-
-def add_gaussian_noise(X: np.ndarray, sigma: float, rng_seed: int = 42) -> np.ndarray:
-    """
-    Thêm nhiễu Gaussian (White Gaussian Noise) vào ảnh.
-
-    Mỗi pixel bị cộng thêm một giá trị ngẫu nhiên ε ~ N(0, σ²).
-    Kết quả được clip về [0, 255] để giữ giá trị pixel hợp lệ.
-
-    Tham số:
-        X     : ảnh (vector hoặc ma trận) giá trị pixel trong [0, 255].
-        sigma : độ lệch chuẩn của nhiễu (lớn hơn = nhiễu mạnh hơn).
-        rng_seed : seed ngẫu nhiên để kết quả tái lập được.
-    """
-    rng   = np.random.default_rng(rng_seed)
-    noise = rng.normal(loc=0.0, scale=sigma, size=X.shape)
-    return np.clip(X + noise, 0.0, 255.0)
-
 
 def _save_fig(fig: plt.Figure, path: str) -> None:
     os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
@@ -231,157 +216,75 @@ def plot_reconstruction_quality(
 
 
 # ==============================================================================
-# ỨNG DỤNG 2 — Khử nhiễu ảnh
+# ỨNG DỤNG 2 — Làm mờ ảnh
 # ==============================================================================
 
-def plot_denoising_comparison(
+def plot_blurring_effect(
     recognizer,
     x_sample: np.ndarray,
     img_shape: tuple[int, int],
-    sigma_values: list[float],
-    k_denoise: int,
-    save_path: str = "outputs/app2_denoising.png",
+    k_values: list[int],
+    save_path: str = "outputs/app2_blurring.png",
 ) -> dict:
     """
-    Minh họa khử nhiễu bằng phép chiếu vuông góc với nhiều mức nhiễu khác nhau.
+    Minh họa hiệu ứng làm mờ bằng cách tái tạo ảnh với số lượng eigenfaces (k) thấp.
 
-    Tại sao chiếu xuống giúp khử nhiễu? [2][3]
-        - Nhiễu Gaussian ~ N(0, σ²) phân tán đều theo MỌI hướng trong R^p.
-        - Tín hiệu khuôn mặt tập trung theo k hướng Eigenface (phương sai lớn nhất).
-        - Chiếu xuống không gian k chiều:
-            + Giữ lại: phần tín hiệu dọc theo u₁,...,u_k
-            + Loại bỏ: phần nhiễu theo (p−k) hướng vuông góc còn lại
-        - Hiệu quả nhất khi k nhỏ hơn nhiều so với p (p = 10304, k ~ 50).
+    Ý tưởng:
+        - Tái tạo ảnh với k thấp loại bỏ các thành phần tần số cao (chi tiết nhỏ),
+          chỉ giữ lại các thành phần tần số thấp (cấu trúc chính).
+        - Đây là một dạng của bộ lọc thông thấp (low-pass filter), gây ra hiệu ứng làm mờ.
+        - Mức độ mờ tăng khi k giảm.
 
-    Tham số:
-        sigma_values : danh sách mức nhiễu σ cần thử.
-        k_denoise    : số eigenfaces dùng để chiếu khử nhiễu.
+    Công thức tái tạo:
+        x̂ = U_k · U_k^T · (x − x̄) + x̄
 
     Trả về:
-        dict: {sigma: {'noisy': ..., 'denoised': ..., 'psnr_noisy': ..., 'psnr_denoised': ...}}
+        dict: {'k': k, 'mse': ..., 'psnr': ...} cho từng k
     """
     h, w    = img_shape
     results = {}
-    n_sigma = len(sigma_values)
 
-    fig, axes = plt.subplots(n_sigma, 3, figsize=(9, n_sigma * 3.2))
-    if n_sigma == 1:
-        axes = axes.reshape(1, 3)
-
-    col_titles = ["Ảnh gốc\n(Original)", "Ảnh bị nhiễu\n(Noisy)", "Ảnh sau khử nhiễu\n(Denoised)"]
-    for col, title in enumerate(col_titles):
-        axes[0, col].set_title(title, fontsize=10, fontweight="bold", pad=8)
-
-    for row, sigma in enumerate(sigma_values):
-        # Thêm nhiễu
-        x_noisy    = add_gaussian_noise(x_sample, sigma=sigma, rng_seed=42 + row)
-        # Khử nhiễu bằng phép chiếu
-        x_denoised = recognizer.reconstruct(x_noisy, n_components=k_denoise)
-
-        psnr_noisy    = psnr(x_sample, x_noisy)
-        psnr_denoised = psnr(x_sample, x_denoised)
-        gain          = psnr_denoised - psnr_noisy
-
-        results[sigma] = {
-            "x_noisy"      : x_noisy,
-            "x_denoised"   : x_denoised,
-            "psnr_noisy"   : psnr_noisy,
-            "psnr_denoised": psnr_denoised,
-            "psnr_gain"    : gain,
+    # Tính ảnh đã làm mờ cho từng k
+    for k in k_values:
+        x_blur = recognizer.reconstruct(x_sample, n_components=k)
+        results[k] = {
+            "x_blur": x_blur,
+            "mse"   : mse(x_sample, x_blur),
+            "psnr"  : psnr(x_sample, x_blur),
         }
 
-        imgs     = [x_sample, x_noisy, x_denoised]
-        captions = [
-            "—",
-            f"PSNR = {psnr_noisy:.1f} dB",
-            f"PSNR = {psnr_denoised:.1f} dB  (+{gain:.1f} dB)",
-        ]
-        border_colors = ["#2c3e50", "#e74c3c", "#27ae60"]
+    # ----- Vẽ biểu đồ -----
+    n_cols = len(k_values) + 1   # +1 cho ảnh gốc
+    fig, axes = plt.subplots(1, n_cols, figsize=(n_cols * 2.6, 3.8))
 
-        for col in range(3):
-            ax = axes[row, col]
-            ax.imshow(_vec_to_img(imgs[col], h, w), cmap="gray", vmin=0, vmax=255)
-            ax.set_xlabel(captions[col], fontsize=8)
-            ax.set_xticks([])
-            ax.set_yticks([])
-            for spine in ax.spines.values():
-                spine.set_edgecolor(border_colors[col])
-                spine.set_linewidth(2)
+    # Ảnh gốc
+    axes[0].imshow(_vec_to_img(x_sample, h, w), cmap="gray", vmin=0, vmax=255)
+    axes[0].set_title("Ảnh gốc\n(Original)", fontsize=10, fontweight="bold")
+    axes[0].axis("off")
 
-        # Nhãn mức nhiễu bên trái
-        axes[row, 0].set_ylabel(f"σ = {sigma:.0f}", fontsize=11,
-                                fontweight="bold", rotation=90, labelpad=8)
+    # Ảnh đã làm mờ với từng k (k nhỏ → mờ nhiều, k lớn → mờ ít)
+    for col, k in enumerate(k_values, start=1):
+        r      = results[k]
+        x_blur = r["x_blur"]
+        axes[col].imshow(_vec_to_img(x_blur, h, w), cmap="gray", vmin=0, vmax=255)
+        axes[col].set_title(
+            f"k = {k} eigenfaces",
+            fontsize=10,
+        )
+        axes[col].set_xlabel(
+            f"MSE = {r['mse']:.1f}\nPSNR = {r['psnr']:.1f} dB",
+            fontsize=8,
+        )
+        axes[col].axis("off")
 
     fig.suptitle(
-        f"Ứng dụng 2: Khử nhiễu bằng Phép chiếu vuông góc  (k = {k_denoise} Eigenfaces)\n"
-        "Chiếu về không gian k chiều loại bỏ nhiễu theo (p−k) hướng vuông góc còn lại",
-        fontsize=11, fontweight="bold",
+        "Ứng dụng 2: Làm mờ ảnh bằng Phép chiếu vuông góc\n"
+        r"$\hat{x} = U_k U_k^T (x - \bar{x}) + \bar{x}$  —  k nhỏ ⇒ chỉ giữ tần số thấp ⇒ ảnh mờ hơn",
+        fontsize=12, fontweight="bold",
     )
     fig.tight_layout()
     _save_fig(fig, save_path)
     return results
-
-
-def plot_denoising_psnr(
-    denoise_results: dict,
-    k_denoise: int,
-    save_path: str = "outputs/app2_psnr_gain.png",
-) -> None:
-    """
-    Biểu đồ so sánh PSNR trước và sau khi khử nhiễu theo từng mức nhiễu σ.
-    """
-    sigmas         = sorted(denoise_results.keys())
-    psnrs_noisy    = [denoise_results[s]["psnr_noisy"]    for s in sigmas]
-    psnrs_denoised = [denoise_results[s]["psnr_denoised"] for s in sigmas]
-    gains          = [denoise_results[s]["psnr_gain"]     for s in sigmas]
-
-    x      = np.arange(len(sigmas))
-    width  = 0.35
-
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(11, 4.5))
-
-    # PSNR trước và sau
-    bars1 = ax1.bar(x - width / 2, psnrs_noisy,    width, label="Trước khử nhiễu",
-                    color="#e74c3c", alpha=0.85)
-    bars2 = ax1.bar(x + width / 2, psnrs_denoised, width, label="Sau khử nhiễu",
-                    color="#27ae60", alpha=0.85)
-
-    ax1.axhline(30, color="orange", linestyle="--", linewidth=1, label="30 dB (tốt)")
-    ax1.axhline(40, color="gray",   linestyle="--", linewidth=1, label="40 dB (rất tốt)")
-
-    ax1.set_xlabel("Mức nhiễu Gaussian (σ)", fontsize=11)
-    ax1.set_ylabel("PSNR [dB]", fontsize=11)
-    ax1.set_title("PSNR trước và sau khử nhiễu", fontsize=12)
-    ax1.set_xticks(x)
-    ax1.set_xticklabels([f"σ={s:.0f}" for s in sigmas])
-    ax1.legend(fontsize=9)
-    ax1.grid(True, alpha=0.3, axis="y")
-
-    # Gán số lên cột
-    for bar in bars1:
-        h = bar.get_height()
-        ax1.text(bar.get_x() + bar.get_width() / 2, h + 0.3,
-                 f"{h:.1f}", ha="center", va="bottom", fontsize=8)
-    for bar in bars2:
-        h = bar.get_height()
-        ax1.text(bar.get_x() + bar.get_width() / 2, h + 0.3,
-                 f"{h:.1f}", ha="center", va="bottom", fontsize=8)
-
-    # Mức tăng PSNR
-    ax2.bar(x, gains, color="#3498db", alpha=0.85)
-    for i, g in enumerate(gains):
-        ax2.text(i, g + 0.1, f"+{g:.1f} dB", ha="center", va="bottom",
-                 fontsize=9, fontweight="bold")
-    ax2.set_xlabel("Mức nhiễu Gaussian (σ)", fontsize=11)
-    ax2.set_ylabel("PSNR tăng thêm [dB]", fontsize=11)
-    ax2.set_title(f"Mức tăng PSNR nhờ khử nhiễu (k = {k_denoise})", fontsize=12)
-    ax2.set_xticks(x)
-    ax2.set_xticklabels([f"σ={s:.0f}" for s in sigmas])
-    ax2.grid(True, alpha=0.3, axis="y")
-
-    fig.suptitle("Hiệu quả khử nhiễu bằng Phép chiếu Eigenface", fontsize=13, fontweight="bold")
-    fig.tight_layout()
-    _save_fig(fig, save_path)
 
 
 # ==============================================================================
@@ -434,40 +337,33 @@ def run_extended_applications(
         print(f"  {k:>6}  {r['mse']:>10.2f}  {r['psnr']:>12.2f}")
 
     # ------------------------------------------------------------------
-    # ỨNG DỤNG 2 — Khử nhiễu
+    # ỨNG DỤNG 2 — Làm mờ ảnh
     # ------------------------------------------------------------------
-    print("\n── ỨNG DỤNG 2: Khử nhiễu ảnh (Image Denoising) ──")
+    print("\n── ỨNG DỤNG 2: Làm mờ ảnh (Image Blurring) ──")
 
-    # Chọn k khử nhiễu: dùng k giải thích ~80% variance (không quá nhiều để loại nhiễu tốt)
-    k_denoise = recognizer.n_components_for_variance(0.80)
-    k_denoise = min(k_denoise, recognizer.eigenfaces_.shape[1])
-    print(f"  Dùng k = {k_denoise} eigenfaces để khử nhiễu "
-          f"(giải thích ≥80% variance)\n")
+    # Dùng k nhỏ để thấy rõ hiệu ứng mờ (k càng nhỏ → ảnh càng mờ)
+    k_values_blur = [1, 3, 7, 15, 30]
+    k_values_blur = [k for k in k_values_blur
+                     if k <= recognizer.eigenfaces_.shape[1]]
+    print(f"  Tái tạo ảnh với k nhỏ → bộ lọc thông thấp → hiệu ứng làm mờ")
+    print(f"  k thử nghiệm: {k_values_blur}\n")
 
-    sigma_values  = [10.0, 25.0, 50.0]
-
-    denoise_results = plot_denoising_comparison(
+    blur_results = plot_blurring_effect(
         recognizer,
         x_sample,
         img_shape,
-        sigma_values=sigma_values,
-        k_denoise=k_denoise,
-        save_path=os.path.join(output_dir, "app2_denoising.png"),
+        k_values=k_values_blur,
+        save_path=os.path.join(output_dir, "app2_blurring.png"),
     )
 
-    plot_denoising_psnr(
-        denoise_results,
-        k_denoise=k_denoise,
-        save_path=os.path.join(output_dir, "app2_psnr_gain.png"),
-    )
-
-    # In bảng kết quả ra console
-    print(f"\n  {'σ':>6}  {'PSNR (nhiễu)':>14}  {'PSNR (khử)':>12}  {'Tăng':>8}")
-    print("  " + "-" * 48)
-    for sigma in sorted(denoise_results):
-        r = denoise_results[sigma]
-        print(f"  {sigma:>6.0f}  {r['psnr_noisy']:>14.1f}  "
-              f"{r['psnr_denoised']:>12.1f}  {r['psnr_gain']:>+8.1f} dB")
+    # In bảng kết quả ra console: MSE/PSNR cho các mức độ mờ khác nhau
+    print(f"\n  {'k':>6}  {'MSE':>10}  {'PSNR (dB)':>12}  {'Mức mờ':>10}")
+    print("  " + "-" * 46)
+    for k in sorted(blur_results):
+        r     = blur_results[k]
+        # Quy ước: k càng nhỏ thì ảnh càng mờ
+        level = "rất mờ" if k <= 3 else ("mờ" if k <= 15 else "ít mờ")
+        print(f"  {k:>6}  {r['mse']:>10.2f}  {r['psnr']:>12.2f}  {level:>10}")
 
     print(f"\n  Tất cả biểu đồ Bước 6 đã lưu vào: {output_dir}/")
 

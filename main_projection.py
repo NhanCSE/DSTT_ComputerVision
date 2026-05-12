@@ -14,7 +14,7 @@ Cấu trúc pipeline:
     Bước 2 — Huấn luyện OrthogonalFaceRecognizer (Eigenfaces)
     Bước 3 — Tìm k tối ưu + so sánh với Baseline Pixel-KNN
     Bước 4 — Sinh biểu đồ cho báo cáo và slide
-    Bước 6 — Ứng dụng mở rộng: tái tạo ảnh và khử nhiễu
+    Bước 6 — Ứng dụng mở rộng: tái tạo ảnh và làm mờ ảnh
     (Bước 5 được minh họa riêng: chạy  python manual_example.py)
 """
 
@@ -157,7 +157,7 @@ def main() -> None:
     # ------------------------------------------------------------------
     # BƯỚC 6 — Ứng dụng mở rộng (dùng recognizer với k lớn hơn để đủ eigenfaces)
     # ------------------------------------------------------------------
-    _section("BƯỚC 6 — Ứng dụng mở rộng: Tái tạo & Khử nhiễu")
+    _section("BƯỚC 6 — Ứng dụng mở rộng: Tái tạo & Làm mờ ảnh")
     t0 = time.perf_counter()
 
     # Huấn luyện lại với k=150 để có đủ eigenfaces cho mọi thí nghiệm tái tạo
@@ -194,8 +194,7 @@ def main() -> None:
     ├── variance_ratio.png
     ├── app1_reconstruction.png
     ├── app1_quality_curve.png
-    ├── app2_denoising.png
-    └── app2_psnr_gain.png
+    └── app2_blurring.png
 
   Ví dụ tính tay (Bước 5)   : python manual_example.py
   Tổng thời gian pipeline    : {_elapsed(t_total)}

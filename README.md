@@ -27,7 +27,7 @@ Dự án này hiện thực thuật toán **Eigenfaces** — ứng dụng tiêu 
 |---|---|
 | **Nhận dạng khuôn mặt** | Nhận dạng danh tính từ ảnh mới bằng cách so sánh trong không gian eigenface |
 | **Tái tạo ảnh** | Nén và tái tạo ảnh qua phép chiếu lên không gian con k chiều |
-| **Khử nhiễu ảnh** | Loại bỏ nhiễu Gaussian bằng cách chiếu về không gian tín hiệu |
+| **Làm mờ ảnh** | Làm mờ ảnh bằng cách tái tạo với số lượng eigenfaces thấp, hoạt động như một bộ lọc thông thấp. |
 
 ### Ràng buộc kỹ thuật
 
@@ -127,7 +127,7 @@ _DSTT/
 │
 ├── main_projection.py          # Entry point: chạy toàn bộ pipeline (Bước 1–4, 6)
 ├── manual_example.py           # Bước 5: ví dụ tính tay trên dữ liệu 4 ảnh 3×3
-├── extended_applications.py    # Bước 6: tái tạo ảnh và khử nhiễu
+├── extended_applications.py    # Bước 6: tái tạo ảnh và làm mờ ảnh
 ├── requirements.txt            # Thư viện cần cài
 │
 ├── src/
@@ -194,7 +194,7 @@ Pipeline thực hiện theo thứ tự:
 [Bước 2] Huấn luyện OrthogonalFaceRecognizer với k tối ưu
 [Bước 3b] So sánh Eigenfaces vs Baseline Pixel-KNN → in báo cáo
 [Bước 4] Sinh 5 biểu đồ → outputs/
-[Bước 6] Tái tạo ảnh + khử nhiễu → thêm 4 biểu đồ → outputs/
+[Bước 6] Tái tạo ảnh + làm mờ ảnh → thêm 3 biểu đồ → outputs/
 ```
 
 ### Chạy ví dụ tính tay (Bước 5)
@@ -212,7 +212,7 @@ python src/dataloader.py           # kiểm tra đọc dataset
 python src/recognizer.py           # huấn luyện + đánh giá nhanh
 python src/evaluator.py            # so sánh đầy đủ
 python src/visualizer.py           # sinh toàn bộ biểu đồ
-python extended_applications.py    # tái tạo ảnh và khử nhiễu
+python extended_applications.py    # tái tạo ảnh và làm mờ ảnh
 ```
 
 ---
@@ -240,7 +240,7 @@ Class `OrthogonalFaceRecognizer` — thuật toán cốt lõi, toàn bộ từ n
 |---|---|---|
 | `fit(X_train, y_train)` | 7 bước pipeline | Lưu mean, eigenfaces, train projections |
 | `project(X)` | $\hat{\mathbf{y}} = U_k^T(\mathbf{x} - \bar{\mathbf{x}})$ | **Phép chiếu vuông góc cốt lõi** |
-| `reconstruct(X, n_components)` | $\hat{\mathbf{x}} = U_k U_k^T(\mathbf{x} - \bar{\mathbf{x}}) + \bar{\mathbf{x}}$ | Dùng cho tái tạo và khử nhiễu |
+| `reconstruct(X, n_components)` | $\hat{\mathbf{x}} = U_k U_k^T(\mathbf{x} - \bar{\mathbf{x}}) + \bar{\mathbf{x}}$ | Dùng cho tái tạo và làm mờ ảnh |
 | `predict(X_test)` | 1-NN trên không gian eigenface | Khoảng cách Euclidean |
 | `explained_variance_ratio()` | $\lambda_i / \sum\lambda$ | Tỉ lệ phương sai giải thích |
 | `n_components_for_variance(target)` | — | Tìm k tối thiểu đạt ngưỡng (vd: 95%) |
@@ -327,14 +327,13 @@ $$\hat{\mathbf{x}} = U_k U_k^T (\mathbf{x} - \bar{\mathbf{x}}) + \bar{\mathbf{x}
 | `plot_reconstruction_comparison(...)` | `app1_reconstruction.png` | Lưới: gốc \| k=1 \| k=5 \| k=20 \| k=50 \| k=100 \| k=150 — kèm MSE, PSNR |
 | `plot_reconstruction_quality(...)` | `app1_quality_curve.png` | Đường cong MSE ↓ và PSNR ↑ theo k |
 
-#### Ứng dụng 2: Khử nhiễu ảnh
+#### Ứng dụng 2: Làm mờ ảnh
 
-Nhiễu Gaussian $\varepsilon \sim \mathcal{N}(0, \sigma^2)$ phân tán đều mọi hướng. Chiếu về $k$ chiều eigenface loại bỏ nhiễu theo $(p-k)$ hướng vuông góc còn lại:
+Các eigenface đầu tiên (eigenvalue lớn) nắm bắt **tần số thấp** (cấu trúc tổng thể), các eigenface sau nắm bắt **tần số cao** (chi tiết nhỏ, cạnh). Tái tạo ảnh chỉ với $k$ eigenface đầu tiên hoạt động như một **bộ lọc thông thấp** (low-pass filter): loại bỏ chi tiết tần số cao ⇒ ảnh bị làm mờ. Mức độ mờ tăng khi $k$ giảm.
 
 | Hàm | File output | Nội dung |
 |---|---|---|
-| `plot_denoising_comparison(...)` | `app2_denoising.png` | 3 hàng (σ=10, 25, 50): gốc \| nhiễu \| khử nhiễu — kèm PSNR |
-| `plot_denoising_psnr(...)` | `app2_psnr_gain.png` | Cột đôi PSNR trước/sau + mức tăng PSNR |
+| `plot_blurring_effect(...)` | `app2_blurring.png` | Lưới: gốc \| k=1 \| k=3 \| k=7 \| k=15 \| k=30 — kèm MSE, PSNR. k nhỏ ⇒ ảnh mờ hơn |
 
 ---
 
@@ -359,14 +358,6 @@ Nhiễu Gaussian $\varepsilon \sim \mathcal{N}(0, \sigma^2)$ phân tán đều m
 | 100 | ~42 | Rất tốt |
 | 150 | ~48 | Gần như hoàn hảo |
 
-### Hiệu quả khử nhiễu
-
-| Mức nhiễu σ | PSNR trước | PSNR sau | Tăng |
-|---|---|---|---|
-| 10 | ~28 dB | ~33 dB | +5 dB |
-| 25 | ~20 dB | ~30 dB | +10 dB |
-| 50 | ~14 dB | ~28 dB | +14 dB |
-
 ---
 
 ## 8. Biểu đồ đầu ra
@@ -384,8 +375,7 @@ outputs/
 ├── app1_reconstruction.png # So sánh tái tạo: gốc | k=1 | k=5 | … | k=150
 ├── app1_quality_curve.png  # Đường cong MSE và PSNR theo k
 │
-├── app2_denoising.png      # Gốc | nhiễu | khử nhiễu (3 mức σ)
-└── app2_psnr_gain.png      # Biểu đồ mức tăng PSNR sau khử nhiễu
+└── app2_blurring.png       # Hiệu ứng làm mờ với k nhỏ dần (k=1, 3, 7, 15, 30)
 ```
 
 Sau khi chạy `python manual_example.py`:
