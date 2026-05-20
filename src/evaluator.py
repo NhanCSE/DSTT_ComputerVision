@@ -32,6 +32,8 @@ def accuracy(y_true: np.ndarray, y_pred: np.ndarray) -> float:
     """
     y_true = np.asarray(y_true)
     y_pred = np.asarray(y_pred)
+    # (y_true == y_pred) trả về mảng boolean True/False.
+    # np.mean coi True=1, False=0 → trung bình chính là tỉ lệ True.
     return float(np.mean(y_true == y_pred))
 
 
@@ -50,9 +52,12 @@ def per_class_accuracy(
     """
     y_true  = np.asarray(y_true)
     y_pred  = np.asarray(y_pred)
+    # np.unique trả về các giá trị nhãn xuất hiện (không trùng).
     classes = np.unique(y_true)
     result  = {}
     for cls in classes:
+        # mask: mảng boolean, True ở các vị trí có nhãn = cls.
+        # y_pred[mask] = chỉ lấy các dự đoán ở những vị trí đó.
         mask         = y_true == cls
         result[cls]  = float(np.mean(y_pred[mask] == y_true[mask]))
     return result

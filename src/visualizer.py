@@ -43,7 +43,12 @@ def _vec_to_img(vec: np.ndarray) -> np.ndarray:
 def _normalize_for_display(img: np.ndarray) -> np.ndarray:
     """
     Chuẩn hóa giá trị về [0, 1] để hiển thị.
-    Cần thiết cho eigenfaces vì chúng có thể có giá trị âm.
+    Cần thiết cho eigenfaces vì chúng có thể có giá trị ÂM
+    (eigenface là vector toán học, không phải ảnh thật).
+
+    Công thức min-max scaling:
+        out = (img - min) / (max - min)
+    → out có giá trị nhỏ nhất = 0, lớn nhất = 1.
     """
     lo, hi = img.min(), img.max()
     if hi - lo < 1e-10:          # ảnh hằng số (tránh chia cho 0)
