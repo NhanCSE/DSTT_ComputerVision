@@ -1,1 +1,12 @@
+source .venv/bin/activate
 streamlit run web/streamlit_app.py
+
+cd DSTT_ComputerVision
+pm2 start ".venv/bin/streamlit run web/streamlit_app.py --server.port 8501 --server.address 0.0.0.0" --name streamlit
+
+git remote -v
+git remote add upstream https://github.com/tienkhoa03/DSTT_ComputerVision.git
+git fetch upstream
+git pull upstream face_recognition
+git checkout -b face-recognition upstream/face-recognition
+git push -u origin face-recognition
