@@ -67,6 +67,18 @@ class OrthogonalFaceRecognizer:
         Trả về:
             self (để hỗ trợ cú pháp chaining: recognizer.fit(...).predict(...))
         """
+        # ------------------------------------------------------------------
+        # Quy ước shape:
+        #   X_train : (N, p)
+        #     - mỗi HÀNG là một ảnh đã flatten thành vector p chiều.
+        #     - N = số ảnh train (vd: 320), p = số pixel (vd: 10304).
+        #
+        # Lưu ý cho người mới:
+        #   - Trong nhiều sách toán, ảnh được xếp theo CỘT (X có shape (p, N)).
+        #     Ở đây chúng ta dùng theo HÀNG vì numpy thao tác hàng tiện hơn.
+        #   - Do đó các công thức bên dưới có thể khác sách một chút
+        #     (vd: dùng Phi @ Phi.T thay vì Phi.T @ Phi).
+        # ------------------------------------------------------------------
         N, p = X_train.shape  # N = số ảnh train, p = số pixel mỗi ảnh
 
         # ------------------------------------------------------------------
@@ -185,50 +197,17 @@ class OrthogonalFaceRecognizer:
             X = X.reshape(1, -1)
 
         # Trung tâm hóa: x - x̄
+        # Broadcasting: numpy tự trừ mean_face_ khỏi MỖI hàng của X.
         X_centered   = X - self.mean_face_             # shape: (N, p)
 
-        # Chiếu xuống không gian eigenface: (x - x̄) @ U = U^T (x - x̄) cho từng hàng
+        # Chiếu xuống không gian eigenface.
+        # Giải thích: với một ảnh đơn (vector hàng 1×p):
+        #     (1×p) @ (p×k) = (1×k)   ← tọa độ k chiều
+        # Tương đương công thức toán U^T·(x - x̄), nhưng vì X được xếp theo HÀNG
+        # nên ta nhân (X - x̄) @ U thay vì U^T·(X - x̄).
         projections  = X_centered @ self.eigenfaces_   # shape: (N, k)
 
         return projections[0] if single else projections
-
-    # ==========================================================================
-    # RECONSTRUCT — Tái tạo ảnh (dùng cho Bước 6: ứng dụng tái tạo/làm mờ)
-    # ==========================================================================
-    def reconstruct(self, X: np.ndarray, n_components: int | None = None) -> np.ndarray:
-        """
-        Chiếu X xuống không gian eigenface rồi chiếu ngược lại (tái tạo).
-
-        Công thức:  x̂ = U_k U_k^T (x - x̄) + x̄
-
-        Giải thích:
-          x̂ là hình chiếu của x lên không gian con span(u1,...,uk),
-          cộng lại với x̄ để trở về không gian ảnh gốc.
-          Khi k → p, x̂ → x (tái tạo hoàn hảo).
-
-        Tham số:
-            X            : shape (N, p) hoặc (p,) — ảnh gốc cần tái tạo.
-            n_components : dùng bao nhiêu eigenfaces để tái tạo.
-                          Nếu None, dùng tất cả k eigenfaces đang có.
-        """
-        single = X.ndim == 1
-        if single:
-            X = X.reshape(1, -1)
-
-        # Chọn k eigenfaces để tái tạo
-        k = n_components if n_components is not None else self.eigenfaces_.shape[1]
-        k = min(k, self.eigenfaces_.shape[1])
-        U_k = self.eigenfaces_[:, :k]                  # shape: (p, k)
-
-        # Chiếu xuống và chiếu ngược lại
-        X_centered      = X - self.mean_face_           # shape: (N, p)
-        coords          = X_centered @ U_k              # shape: (N, k)    — ŷ
-        X_reconstructed = coords @ U_k.T + self.mean_face_  # shape: (N, p) — x̂
-
-        # Clip về [0, 255] vì pixel không thể ra ngoài khoảng này
-        X_reconstructed = np.clip(X_reconstructed, 0, 255)
-
-        return X_reconstructed[0] if single else X_reconstructed
 
     # ==========================================================================
     # PREDICT — Nhận dạng bằng 1-Nearest Neighbor
@@ -260,11 +239,18 @@ class OrthogonalFaceRecognizer:
 
         for i in range(N_test):
             # Bước 2: Khoảng cách Euclidean từ ảnh test thứ i tới mỗi ảnh train
-            # ||ŷ_test - ŷ_train_j||_2 = sqrt(Σ (ŷ_test_l - ŷ_train_jl)^2)
+            # Công thức: ||ŷ_test - ŷ_train_j||_2 = sqrt(Σ (ŷ_test_l - ŷ_train_jl)^2)
+            #
+            # Cách tính vector hoá (nhanh hơn vòng for):
+            #   diffs[j] = train_projections_[j] - test_projs[i]   (vector k chiều)
+            #   distance[j] = sqrt(sum(diffs[j] ** 2))             (số thực)
+            # Nhờ broadcasting, numpy tính được TẤT CẢ N_train khoảng cách
+            # cùng một lúc — không cần vòng for thứ hai.
             diffs     = self.train_projections_ - test_projs[i]  # shape: (N_train, k)
             distances = np.sqrt(np.sum(diffs ** 2, axis=1))      # shape: (N_train,)
 
-            # Bước 3: Ảnh train gần nhất
+            # Bước 3: Chọn ảnh train có khoảng cách nhỏ nhất (1-Nearest Neighbor).
+            # → Nhãn dự đoán = nhãn của ảnh train đó.
             nearest_idx   = np.argmin(distances)
             predictions[i] = self.train_labels_[nearest_idx]
 

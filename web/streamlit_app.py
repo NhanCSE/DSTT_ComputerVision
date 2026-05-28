@@ -1,3 +1,13 @@
+"""
+streamlit_app.py — Ứng dụng web demo cho Eigenfaces
+====================================================
+Cho phép người dùng upload ảnh khuôn mặt và xem từng bước nhận dạng
+hiển thị trực tiếp trên trình duyệt.
+
+Chạy bằng lệnh (ở thư mục gốc của dự án):
+    streamlit run web/streamlit_app.py
+"""
+
 import io
 from pathlib import Path
 import sys
@@ -6,53 +16,112 @@ import numpy as np
 import streamlit as st
 from PIL import Image
 
+# ---------------------------------------------------------------------------
+# THIẾT LẬP ĐƯỜNG DẪN — cho phép import từ thư mục src/
+# ---------------------------------------------------------------------------
+# __file__ = đường dẫn file hiện tại (web/streamlit_app.py)
+# .resolve() = chuyển thành đường dẫn tuyệt đối
+# .parents[1] = đi LÊN 1 cấp thư mục (web/ → DSTT_ComputerVision/)
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+# Nạp các module tự viết từ src/
 from src.dataloader import download_orl_dataset, load_orl_dataset, IMG_HEIGHT, IMG_WIDTH
 from src.recognizer import OrthogonalFaceRecognizer
 
 DATA_DIR = PROJECT_ROOT / "data" / "orl_faces"
 
 
+# ===========================================================================
+# HÀM PHỤ TRỢ
+# ===========================================================================
+
 def _to_image(vec: np.ndarray) -> np.ndarray:
+    """
+    Đổi vector 1D (10304,) trở lại ảnh 2D (112, 92).
+    Đây là phép NGƯỢC của bước flatten() khi đọc ảnh.
+    """
     return vec.reshape(IMG_HEIGHT, IMG_WIDTH)
 
 
 def _image_bytes_to_vector(file_bytes: bytes) -> tuple[np.ndarray, np.ndarray]:
-    img = Image.open(io.BytesIO(file_bytes)).convert("L")
-    img = img.resize((IMG_WIDTH, IMG_HEIGHT))
-    arr = np.array(img, dtype=np.float64)
-    return arr.flatten(), arr
+    """
+    Chuyển dữ liệu byte (file upload) thành vector + ảnh 2D.
+
+    Tham số:
+        file_bytes : dữ liệu nhị phân (bytes) lấy từ file người dùng upload.
+
+    Trả về:
+        (vector 1D shape (10304,), ảnh 2D shape (112, 92)).
+    """
+    # io.BytesIO bao bọc bytes thành "file ảo" để PIL có thể đọc.
+    img = Image.open(io.BytesIO(file_bytes)).convert("L")  # 'L' = grayscale
+    img = img.resize((IMG_WIDTH, IMG_HEIGHT))               # chuẩn hoá kích thước
+    arr = np.array(img, dtype=np.float64)                   # PIL Image → numpy array 2D
+    return arr.flatten(), arr                               # vector 1D, ảnh 2D
 
 
 def _log_step(log_lines: list, log_box, progress, msg: str, p: float | None = None) -> None:
+    """
+    Ghi một dòng log lên giao diện Streamlit và cập nhật thanh tiến trình.
+
+    Tham số:
+        log_lines : list nội bộ chứa toàn bộ dòng log đã ghi.
+        log_box   : "slot" Streamlit (st.empty()) để vẽ lại log mỗi lần cập nhật.
+        progress  : đối tượng st.progress để vẽ thanh tiến trình.
+        msg       : nội dung dòng log.
+        p         : tỉ lệ tiến trình trong [0, 1] (None = không cập nhật).
+    """
     log_lines.append(msg)
+    # Dùng "\n".join với prefix '- ' để hiển thị danh sách dạng bullet.
     log_box.markdown("\n".join([f"- {line}" for line in log_lines]))
     if p is not None:
         progress.progress(p)
 
 
 def _log_face_recognition_steps(model, x_vec, x_img, X_train, y_train, log_lines, log_box, progress):
+    """
+    Chạy nhận dạng và HIỂN THỊ từng bước thuật toán lên web.
+    Đây là phiên bản "trực quan hóa" của hàm predict() trong recognizer.py.
+
+    Quy trình 6 bước:
+        1. Tiền xử lý ảnh   → flatten thành vector.
+        2. Trung tâm hóa    → trừ mean face.
+        3. Tính vector sai lệch (Φ = x - x̄).
+        4. Phép chiếu       → y = U^T (x - x̄).
+        5. Tính khoảng cách + tìm láng giềng gần nhất.
+        6. Kết quả          → hiển thị ảnh train được khớp.
+    """
+    # ----- Bước 1: hiển thị ảnh đầu vào sau khi đã preprocess -----
     _log_step(log_lines, log_box, progress, "Bước 1: Tiền xử lý ảnh - Chuyển ảnh sang vector", 0.1)
+    # .astype(np.uint8) vì st.image yêu cầu kiểu integer 0-255.
     st.image(x_img.astype(np.uint8), caption="Ảnh đầu vào đã tiền xử lý", width=240)
 
-    x_centered = x_vec - model.mean_face_
+    # ----- Bước 2: trung tâm hóa (trừ khuôn mặt trung bình) -----
+    x_centered = x_vec - model.mean_face_   # broadcasting: trừ từng pixel
     _log_step(log_lines, log_box, progress, f"Bước 2: Trung tâm hóa - Trừ khuôn mặt trung bình (mean face)", 0.2)
+    # Reshape vector mean về ảnh 2D để hiển thị.
     st.image(model.mean_face_.reshape(IMG_HEIGHT, IMG_WIDTH).astype(np.uint8), caption="Khuôn mặt trung bình (mean face)", width=180)
 
+    # ----- Bước 3: ghi log shape vector sai lệch -----
     _log_step(log_lines, log_box, progress, f"Bước 3: Tính vector sai lệch (centered vector) - Shape: {x_centered.shape}", 0.3)
 
+    # ----- Bước 4: phép chiếu vuông góc -----
+    # model.project() trả về tọa độ của ảnh trong không gian k chiều.
     proj = model.project(x_vec)
     _log_step(log_lines, log_box, progress, f"Bước 4: Phép chiếu vuông góc - Chiếu vector lên không gian eigenface", 0.4)
     _log_step(log_lines, log_box, progress, f"   Công thức: y = U^T × (x - mean)", 0.45)
     _log_step(log_lines, log_box, progress, f"   Shape vector sau chiếu: {proj.shape} (tọa độ trong không gian k={model.eigenfaces_.shape[1]} chiều)", 0.5)
 
-    diffs = model.train_projections_ - proj
-    distances = np.sqrt(np.sum(diffs ** 2, axis=1))
-    nn_idx = int(np.argmin(distances))
-    pred = int(model.train_labels_[nn_idx])
+    # ----- Bước 5: tìm láng giềng gần nhất (1-NN) -----
+    # diffs[i] = train_projection[i] - test_projection  (chênh lệch toạ độ)
+    diffs     = model.train_projections_ - proj                 # shape: (N_train, k)
+    # Khoảng cách Euclidean = căn của tổng bình phương các chênh lệch.
+    distances = np.sqrt(np.sum(diffs ** 2, axis=1))             # shape: (N_train,)
+    # Chỉ số ảnh train gần nhất + nhãn tương ứng.
+    nn_idx    = int(np.argmin(distances))
+    pred      = int(model.train_labels_[nn_idx])
 
     _log_step(log_lines, log_box, progress, f"Bước 5: Tìm láng giềng gần nhất bằng 1-NN (Euclidean distance)", 0.6)
     _log_step(log_lines, log_box, progress, f"   - Khoảng cách tới mỗi ảnh train: {distances.shape[0]} khoảng cách", 0.65)
@@ -60,10 +129,11 @@ def _log_face_recognition_steps(model, x_vec, x_img, X_train, y_train, log_lines
     _log_step(log_lines, log_box, progress, f"   - Khoảng cách lớn nhất: {distances.max():.4f}", 0.75)
     _log_step(log_lines, log_box, progress, f"   - Khoảng cách trung bình: {distances.mean():.4f}", 0.8)
 
+    # ----- Bước 6: hiển thị ảnh train được khớp cạnh ảnh đầu vào -----
     nn_img = _to_image(X_train[nn_idx]).astype(np.uint8)
     _log_step(log_lines, log_box, progress, f"Bước 6: Kết quả - Ảnh train gần nhất (chỉ số {nn_idx})", 0.9)
 
-    col1, col2 = st.columns(2)
+    col1, col2 = st.columns(2)   # chia layout thành 2 cột song song
     col1.image(x_img.astype(np.uint8), caption="Ảnh đầu vào", width=240)
     col2.image(nn_img, caption=f"Ảnh train gần nhất (person {pred})", width=240)
 
@@ -74,28 +144,41 @@ def _log_face_recognition_steps(model, x_vec, x_img, X_train, y_train, log_lines
 
 
 def _find_optimal_k(model, X_train, y_train, X_test, y_test):
+    """
+    Tìm số eigenfaces k cho accuracy cao nhất.
+
+    Cách làm: thử nhiều giá trị k (5, 10, 15, …, 150), với mỗi k:
+      1. Huấn luyện một mô hình mới.
+      2. Đo accuracy trên tập test.
+    Chọn k cho accuracy lớn nhất.
+    """
     st.markdown("**🔍 Tìm kiếm k tối ưu**")
 
     log_lines = []
-    log_box = st.empty()
-    progress = st.progress(0)
+    log_box   = st.empty()     # "slot" rỗng để cập nhật log liên tục
+    progress  = st.progress(0)
 
     _log_step(log_lines, log_box, progress, "Bắt đầu tìm k tối ưu cho nhận dạng khuôn mặt", 0.05)
 
-    k_range = range(5, min(150, X_train.shape[0]) + 1, 5)
+    # k_range: 5, 10, 15, ..., min(150, N_train)
+    k_range    = range(5, min(150, X_train.shape[0]) + 1, 5)
     accuracies = []
-    results = []
+    results    = []
 
     for k in k_range:
+        # Huấn luyện mô hình với k eigenfaces.
         model_k = OrthogonalFaceRecognizer(n_components=k)
         model_k.fit(X_train, y_train)
+        # Dự đoán + tính accuracy = tỉ lệ đoán đúng.
         preds = model_k.predict(X_test)
-        acc = np.mean(preds == y_test)
+        acc   = np.mean(preds == y_test)
         accuracies.append(acc)
         results.append((k, acc))
+        # Cập nhật log và thanh tiến trình.
         _log_step(log_lines, log_box, progress, f"K={k}: Độ chính xác = {acc*100:.2f}%", 0.05 + 0.9 * (k - 5) / (min(150, X_train.shape[0]) - 5))
 
-    best_idx = np.argmax(accuracies)
+    # argmax tìm chỉ số có accuracy lớn nhất.
+    best_idx        = np.argmax(accuracies)
     best_k, best_acc = results[best_idx]
 
     _log_step(log_lines, log_box, progress, f"Kết quả: k tối ưu = {best_k} với độ chính xác = {best_acc*100:.2f}%", 1.0)
@@ -104,8 +187,9 @@ def _find_optimal_k(model, X_train, y_train, X_test, y_test):
     st.write(f"- K tối ưu: **{best_k}**")
     st.write(f"- Độ chính xác trên tập test: **{best_acc*100:.2f}%**")
 
+    # Vẽ biểu đồ accuracy vs k (Streamlit line chart).
     chart_data = {
-        "k": [r[0] for r in results],
+        "k"       : [r[0] for r in results],
         "accuracy": [r[1] * 100 for r in results]
     }
     st.line_chart(chart_data, x="k", y="accuracy")
@@ -113,8 +197,15 @@ def _find_optimal_k(model, X_train, y_train, X_test, y_test):
     return best_k
 
 
+# ---------------------------------------------------------------------------
+# CACHE — tránh load/huấn luyện lại mỗi khi người dùng tương tác
+# ---------------------------------------------------------------------------
+# Streamlit chạy lại toàn bộ script mỗi khi widget thay đổi → nếu không cache,
+# dataset và mô hình sẽ bị tải/huấn luyện lại liên tục (rất chậm).
+
 @st.cache_data(show_spinner=False)
 def _load_dataset(data_dir: str) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """Tải ORL dataset (cache để không đọc đĩa nhiều lần)."""
     if not Path(data_dir).is_dir():
         download_orl_dataset(save_dir=str(PROJECT_ROOT / "data"))
     return load_orl_dataset(data_dir=data_dir)
@@ -122,26 +213,32 @@ def _load_dataset(data_dir: str) -> tuple[np.ndarray, np.ndarray, np.ndarray, np
 
 @st.cache_resource(show_spinner=False)
 def _train_model(n_components: int, data_dir: str):
+    """Huấn luyện mô hình Eigenfaces (cache theo từng giá trị k)."""
     X_train, y_train, X_test, y_test = _load_dataset(data_dir)
     model = OrthogonalFaceRecognizer(n_components=n_components)
     model.fit(X_train, y_train)
     return model, X_train, y_train, X_test, y_test
 
 
+# ===========================================================================
+# CẤU HÌNH TRANG WEB
+# ===========================================================================
 st.set_page_config(page_title="Eigenfaces Demo", layout="wide")
 
 st.title("Eigenfaces Demo — Nhận dạng khuôn mặt")
 st.write("Ứng dụng phép chiếu vuông góc để nhận dạng khuôn mặt từ dataset ORL faces.")
 
-# Initialize session state for optimal_k
+# session_state: lưu biến giữa các lần Streamlit rerun (vd: k tối ưu đã tìm).
 if "optimal_k" not in st.session_state:
     st.session_state.optimal_k = None
 
+# Tải dataset ngay khi load trang (có cache nên chỉ chậm lần đầu).
 with st.spinner("Loading dataset..."):
     X_train, y_train, X_test, y_test = _load_dataset(str(DATA_DIR))
-    max_k = min(150, X_train.shape[0])
+    max_k = min(150, X_train.shape[0])    # giới hạn số eigenfaces tối đa
     st.caption(f"Dataset loaded: {len(y_train)} train images, {len(y_test)} test images, {len(np.unique(y_train))} persons")
 
+# Chia trang thành 2 tab: demo và lý thuyết.
 tab_recognition, tab_theory = st.tabs([
     "🎯 Nhận diện khuôn mặt",
     "📚 Lý thuyết & Hướng dẫn",

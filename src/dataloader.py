@@ -178,6 +178,14 @@ def load_image_as_vector(image_path: str) -> np.ndarray:
     # Bước E: Duỗi (flatten) từ 2D → 1D, shape (IMG_SIZE,)
     # flatten() theo thứ tự hàng (row-major / C order):
     # [pixel(0,0), pixel(0,1), ..., pixel(111,91)]
+    #
+    # VÍ DỤ TRỰC QUAN (ảnh 2×3):
+    #   [[a, b, c],          flatten()
+    #    [d, e, f]]   ─────────────────►   [a, b, c, d, e, f]
+    #
+    # Tại sao phải làm phẳng?
+    #   Đại số tuyến tính làm việc với vector, không phải ma trận 2D.
+    #   Khi muốn hiển thị lại, dùng .reshape(112, 92) để khôi phục ảnh 2D.
     img_vector = img_array.flatten()
 
     return img_vector
@@ -247,6 +255,11 @@ def load_orl_dataset(
 
     # Chuyển list of vectors thành ma trận numpy
     # Mỗi HÀNG là một ảnh (một điểm dữ liệu trong R^IMG_SIZE)
+    #
+    # Vì sao dùng float64 cho X và int32 cho y?
+    #   - X chứa giá trị pixel sẽ tham gia các phép tính số học (mean, dot
+    #     product, eigendecomposition) cần độ chính xác cao → float64.
+    #   - y chỉ là nhãn người (1..40), không cần dấu phẩy động → int32 đỡ tốn RAM.
     X_train = np.array(X_train, dtype=np.float64)  # shape: (N_train, 10304)
     y_train = np.array(y_train, dtype=np.int32)     # shape: (N_train,)
     X_test  = np.array(X_test,  dtype=np.float64)   # shape: (N_test,  10304)

@@ -86,15 +86,21 @@ class PixelKNNRecognizer:
         for i in range(N_test):
             # Bước 1: Khoảng cách Euclidean tới tất cả ảnh train
             # ||x_test - x_train_j||_2 = sqrt(Σ (x_test_l - x_train_jl)^2)
+            #
+            # CHÚ Ý: ở đây ta so sánh trực tiếp trong không gian PIXEL (p chiều),
+            # KHÔNG có bước chiếu xuống không gian eigenface.
+            # Đây là điểm khác biệt cốt lõi so với recognizer.py.
             diffs     = self.X_train_ - X_test[i]                # shape: (N_train, p)
             distances = np.sqrt(np.sum(diffs ** 2, axis=1))      # shape: (N_train,)
 
             # Bước 2: Chỉ số k ảnh train gần nhất
+            # np.argsort trả về CHỈ SỐ sắp xếp tăng dần → lấy k phần tử đầu = k nhỏ nhất.
             k_nearest_idx    = np.argsort(distances)[: self.k]   # shape: (k,)
             k_nearest_labels = self.y_train_[k_nearest_idx]      # shape: (k,)
 
             # Bước 3: Majority vote — nhãn xuất hiện nhiều nhất trong k láng giềng
             # np.bincount đếm tần suất từng nhãn (chỉ dùng được với nhãn nguyên dương)
+            # Ví dụ: labels = [1, 2, 2, 3, 2] → bincount = [0, 1, 3, 1] → argmax = 2.
             vote_counts      = np.bincount(k_nearest_labels)
             predictions[i]   = np.argmax(vote_counts)
 

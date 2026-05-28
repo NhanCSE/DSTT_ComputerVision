@@ -48,23 +48,7 @@ Tạo file riêng `manual_example.py` hoặc section trong báo cáo minh họa 
 
 Mục đích: cung cấp ví dụ cụ thể (không phải abstract) cho phần **Thực hành** của báo cáo, tương ứng yêu cầu "Có ví dụ minh họa cho thuật toán" trong đề.
 
-### Bước 6: Ứng dụng mở rộng (Extended Applications)
-Hiện thực thêm 2 ứng dụng khác của phép chiếu vuông góc trong thị giác máy tính (vì đề tài được phân công bao gồm cả tái tạo và làm mờ hình ảnh):
-
-**Ứng dụng 1 — Tái tạo ảnh (Image Reconstruction):**
-- Chiếu ảnh xuống không gian con $k$ chiều rồi chiếu ngược lại: $\hat{\mathbf{x}} = U_k U_k^T (\mathbf{x} - \mathbf{\bar{x}}) + \mathbf{\bar{x}}$.
-- Vẽ biểu đồ so sánh ảnh gốc vs ảnh tái tạo với $k = 5, 20, 50, 100$ eigenfaces.
-- Tính PSNR hoặc MSE để đo chất lượng tái tạo theo $k$.
-
-**Ứng dụng 2 — Làm mờ ảnh (Image Blurring via Low-rank Projection):**
-- Tái tạo ảnh chỉ với $k$ eigenface đầu tiên (eigenvalue lớn) — giữ lại các thành phần **tần số thấp** (cấu trúc tổng thể), loại bỏ các thành phần **tần số cao** (chi tiết nhỏ, cạnh) chứa trong các eigenface cuối.
-- Phép chiếu này hoạt động như một **bộ lọc thông thấp** (low-pass filter), gây ra hiệu ứng làm mờ. Mức độ mờ tăng khi $k$ giảm.
-- So sánh trực quan ảnh gốc và các ảnh đã làm mờ tương ứng với nhiều giá trị $k$ nhỏ (ví dụ $k = 1, 3, 7, 15, 30$), kèm theo MSE/PSNR.
-
-Hai ứng dụng này đáp ứng yêu cầu: *"Nếu có ứng dụng trong nhiều lĩnh vực khác nhau sẽ được đánh giá cao hơn"*.
-
 ## 5. LỆNH THỰC THI CHO AI (AI EXECUTION COMMAND)
 Bắt đầu bằng việc tạo cấu trúc thư mục, tệp `requirements.txt` (chỉ chứa `numpy`, `matplotlib`, `Pillow`, `opencv-python`), và các file mã nguồn:
 - `main_projection.py`: toàn bộ luồng nhận dạng khuôn mặt (Bước 1–4).
 - `manual_example.py`: ví dụ tính tay trên dữ liệu nhỏ (Bước 5).
-- `extended_applications.py`: tái tạo ảnh và làm mờ ảnh (Bước 6).
