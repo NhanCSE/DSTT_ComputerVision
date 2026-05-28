@@ -21,13 +21,7 @@
 
 ## 1. Giới thiệu
 
-Dự án này hiện thực thuật toán **Eigenfaces** — ứng dụng tiêu biểu của phép chiếu vuông góc trong thị giác máy tính — để giải quyết ba bài toán:
-
-| Ứng dụng | Mô tả |
-|---|---|
-| **Nhận dạng khuôn mặt** | Nhận dạng danh tính từ ảnh mới bằng cách so sánh trong không gian eigenface |
-| **Tái tạo ảnh** | Nén và tái tạo ảnh qua phép chiếu lên không gian con k chiều |
-| **Làm mờ ảnh** | Làm mờ ảnh bằng cách tái tạo với số lượng eigenfaces thấp, hoạt động như một bộ lọc thông thấp. |
+Dự án này hiện thực thuật toán **Eigenfaces** — ứng dụng tiêu biểu của phép chiếu vuông góc trong thị giác máy tính — để giải quyết bài toán **nhận dạng khuôn mặt**: nhận dạng danh tính từ ảnh mới bằng cách so sánh trong không gian eigenface.
 
 ### Ràng buộc kỹ thuật
 
@@ -108,16 +102,6 @@ $$\hat{\mathbf{y}} = U_k^T(\mathbf{y} - \bar{\mathbf{x}}) \in \mathbb{R}^k$$
 
 $$\text{person}^* = \arg\min_i \|\hat{\mathbf{y}} - \hat{\mathbf{x}}_i\|_2$$
 
-### 2.8 Tái tạo ảnh
-
-$$\hat{\mathbf{x}} = U_k U_k^T (\mathbf{x} - \bar{\mathbf{x}}) + \bar{\mathbf{x}}$$
-
-Sai số tái tạo là phần của $(\mathbf{x} - \bar{\mathbf{x}})$ **vuông góc** với $\text{span}(U_k)$.
-
-### 2.9 Chỉ số chất lượng
-
-$$\text{MSE} = \frac{1}{p}\sum_{i=1}^{p}(\hat{x}_i - x_i)^2, \qquad \text{PSNR} = 10\log_{10}\!\left(\frac{255^2}{\text{MSE}}\right) \text{ [dB]}$$
-
 ---
 
 ## 3. Cấu trúc dự án
@@ -125,9 +109,8 @@ $$\text{MSE} = \frac{1}{p}\sum_{i=1}^{p}(\hat{x}_i - x_i)^2, \qquad \text{PSNR} 
 ```
 _DSTT/
 │
-├── main_projection.py          # Entry point: chạy toàn bộ pipeline (Bước 1–4, 6)
+├── main_projection.py          # Entry point: chạy toàn bộ pipeline (Bước 1–4)
 ├── manual_example.py           # Bước 5: ví dụ tính tay trên dữ liệu 4 ảnh 3×3
-├── extended_applications.py    # Bước 6: tái tạo ảnh và làm mờ ảnh
 ├── requirements.txt            # Thư viện cần cài
 │
 ├── src/
@@ -138,6 +121,9 @@ _DSTT/
 │   ├── evaluator.py            # Bước 3: accuracy, so sánh k, báo cáo kết quả
 │   └── visualizer.py           # Bước 4: 5 loại biểu đồ cho báo cáo và slide
 │
+├── web/
+│   └── streamlit_app.py        # Giao diện web demo (Streamlit)
+│
 ├── data/
 │   └── orl_faces/              # Dataset ORL (tải tự động khi chạy lần đầu)
 │       ├── s1/  (1.pgm … 10.pgm)
@@ -146,7 +132,7 @@ _DSTT/
 │
 ├── outputs/                    # Toàn bộ biểu đồ được lưu ở đây
 │
-├── AI_IMPLEMENTATION_GUIDE.md  # Hướng dẫn hiện thực chi tiết
+├── IMPLEMENTATION_PLAN.md      # Hướng dẫn hiện thực chi tiết
 └── REQUIREMENT.md              # Đề tài bài tập lớn
 ```
 
@@ -172,9 +158,10 @@ numpy
 matplotlib
 Pillow
 opencv-python
+streamlit
 ```
 
-> **Lưu ý:** Dự án **không dùng** `scikit-learn` hay bất kỳ thư viện ML nào cho phần thuật toán cốt lõi.
+> **Lưu ý:** Dự án **không dùng** `scikit-learn` hay bất kỳ thư viện ML nào cho phần thuật toán cốt lõi. `streamlit` chỉ phục vụ giao diện demo web.
 
 ---
 
@@ -194,7 +181,6 @@ Pipeline thực hiện theo thứ tự:
 [Bước 2] Huấn luyện OrthogonalFaceRecognizer với k tối ưu
 [Bước 3b] So sánh Eigenfaces vs Baseline Pixel-KNN → in báo cáo
 [Bước 4] Sinh 5 biểu đồ → outputs/
-[Bước 6] Tái tạo ảnh + làm mờ ảnh → thêm 3 biểu đồ → outputs/
 ```
 
 ### Chạy ví dụ tính tay (Bước 5)
@@ -205,6 +191,14 @@ python manual_example.py
 
 In từng bước tính tay trên 4 ảnh 3×3 pixel, xuất `outputs/manual_example.png`.
 
+### Chạy giao diện web (Streamlit)
+
+```bash
+streamlit run web/streamlit_app.py
+```
+
+Cho phép upload ảnh khuôn mặt hoặc chọn ảnh mẫu, hiển thị từng bước thuật toán trên trình duyệt tại `http://localhost:8501`.
+
 ### Chạy riêng từng module
 
 ```bash
@@ -212,7 +206,6 @@ python src/dataloader.py           # kiểm tra đọc dataset
 python src/recognizer.py           # huấn luyện + đánh giá nhanh
 python src/evaluator.py            # so sánh đầy đủ
 python src/visualizer.py           # sinh toàn bộ biểu đồ
-python extended_applications.py    # tái tạo ảnh và làm mờ ảnh
 ```
 
 ---
@@ -240,7 +233,6 @@ Class `OrthogonalFaceRecognizer` — thuật toán cốt lõi, toàn bộ từ n
 |---|---|---|
 | `fit(X_train, y_train)` | 7 bước pipeline | Lưu mean, eigenfaces, train projections |
 | `project(X)` | $\hat{\mathbf{y}} = U_k^T(\mathbf{x} - \bar{\mathbf{x}})$ | **Phép chiếu vuông góc cốt lõi** |
-| `reconstruct(X, n_components)` | $\hat{\mathbf{x}} = U_k U_k^T(\mathbf{x} - \bar{\mathbf{x}}) + \bar{\mathbf{x}}$ | Dùng cho tái tạo và làm mờ ảnh |
 | `predict(X_test)` | 1-NN trên không gian eigenface | Khoảng cách Euclidean |
 | `explained_variance_ratio()` | $\lambda_i / \sum\lambda$ | Tỉ lệ phương sai giải thích |
 | `n_components_for_variance(target)` | — | Tìm k tối thiểu đạt ngưỡng (vd: 95%) |
@@ -314,29 +306,6 @@ Minh họa từng bước thuật toán trên **dữ liệu đồ chơi nhỏ** 
 
 ---
 
-### `extended_applications.py` — Bước 6
-
-#### Ứng dụng 1: Tái tạo ảnh
-
-Nén ảnh bằng cách chỉ lưu $k$ tọa độ eigenface thay vì $p = 10304$ pixel:
-
-$$\hat{\mathbf{x}} = U_k U_k^T (\mathbf{x} - \bar{\mathbf{x}}) + \bar{\mathbf{x}}$$
-
-| Hàm | File output | Nội dung |
-|---|---|---|
-| `plot_reconstruction_comparison(...)` | `app1_reconstruction.png` | Lưới: gốc \| k=1 \| k=5 \| k=20 \| k=50 \| k=100 \| k=150 — kèm MSE, PSNR |
-| `plot_reconstruction_quality(...)` | `app1_quality_curve.png` | Đường cong MSE ↓ và PSNR ↑ theo k |
-
-#### Ứng dụng 2: Làm mờ ảnh
-
-Các eigenface đầu tiên (eigenvalue lớn) nắm bắt **tần số thấp** (cấu trúc tổng thể), các eigenface sau nắm bắt **tần số cao** (chi tiết nhỏ, cạnh). Tái tạo ảnh chỉ với $k$ eigenface đầu tiên hoạt động như một **bộ lọc thông thấp** (low-pass filter): loại bỏ chi tiết tần số cao ⇒ ảnh bị làm mờ. Mức độ mờ tăng khi $k$ giảm.
-
-| Hàm | File output | Nội dung |
-|---|---|---|
-| `plot_blurring_effect(...)` | `app2_blurring.png` | Lưới: gốc \| k=1 \| k=3 \| k=7 \| k=15 \| k=30 — kèm MSE, PSNR. k nhỏ ⇒ ảnh mờ hơn |
-
----
-
 ## 7. Kết quả kỳ vọng
 
 ### Accuracy nhận dạng
@@ -346,17 +315,6 @@ Các eigenface đầu tiên (eigenvalue lớn) nắm bắt **tần số thấp**
 | Eigenfaces (k tối ưu ~50) | 92–97% |
 | Baseline Pixel-KNN (1-NN) | 80–88% |
 | Eigenfaces cải thiện | +5–15% |
-
-### Chất lượng tái tạo (PSNR)
-
-| k eigenfaces | PSNR (dB) | Chất lượng |
-|---|---|---|
-| 1 | ~3 | Kém (chỉ thấy hình bóng) |
-| 5 | ~10 | Nhận ra khuôn mặt mờ |
-| 20 | ~25 | Chấp nhận được |
-| 50 | ~35 | Tốt |
-| 100 | ~42 | Rất tốt |
-| 150 | ~48 | Gần như hoàn hảo |
 
 ---
 
@@ -370,12 +328,7 @@ outputs/
 ├── eigenfaces.png          # Lưới top-20 eigenfaces (% variance mỗi ảnh)
 ├── recognition.png         # Ví dụ nhận dạng đúng (xanh) và sai (đỏ)
 ├── accuracy_vs_k.png       # Accuracy vs k + đường baseline
-├── variance_ratio.png      # Phương sai giải thích từng eigenface + tích lũy
-│
-├── app1_reconstruction.png # So sánh tái tạo: gốc | k=1 | k=5 | … | k=150
-├── app1_quality_curve.png  # Đường cong MSE và PSNR theo k
-│
-└── app2_blurring.png       # Hiệu ứng làm mờ với k nhỏ dần (k=1, 3, 7, 15, 30)
+└── variance_ratio.png      # Phương sai giải thích từng eigenface + tích lũy
 ```
 
 Sau khi chạy `python manual_example.py`:
@@ -395,21 +348,18 @@ outputs/
 
 [2] Jolliffe, I. T. (2002). "Principal Component Analysis." 2nd ed. Springer.
 
-[3] Gonzalez, R. C. & Woods, R. E. (2018). "Digital Image Processing."
-    4th ed. Pearson.  (định nghĩa MSE, PSNR trong xử lý ảnh số)
-
-[4] Strang, G. (2016). "Introduction to Linear Algebra." 5th ed. Wellesley-Cambridge Press.
+[3] Strang, G. (2016). "Introduction to Linear Algebra." 5th ed. Wellesley-Cambridge Press.
     (cơ sở lý thuyết về phép chiếu vuông góc, eigendecomposition)
 
-[5] Cover, T. & Hart, P. (1967). "Nearest Neighbor Pattern Classification."
+[4] Cover, T. & Hart, P. (1967). "Nearest Neighbor Pattern Classification."
     IEEE Transactions on Information Theory, 13(1), 21–27.
 
-[6] AT&T Laboratories Cambridge. "The ORL Database of Faces."
+[5] AT&T Laboratories Cambridge. "The ORL Database of Faces."
     https://www.cl.cam.ac.uk/research/dtg/attarchive/facedatabase.html
 
-[7] NumPy documentation — numpy.linalg.eigh.
+[6] NumPy documentation — numpy.linalg.eigh.
     https://numpy.org/doc/stable/reference/generated/numpy.linalg.eigh.html
 
-[8] Hunter, J. D. (2007). "Matplotlib: A 2D graphics environment."
+[7] Hunter, J. D. (2007). "Matplotlib: A 2D graphics environment."
     Computing in Science & Engineering, 9(3), 90–95.
 ```

@@ -210,44 +210,6 @@ class OrthogonalFaceRecognizer:
         return projections[0] if single else projections
 
     # ==========================================================================
-    # RECONSTRUCT — Tái tạo ảnh (dùng cho Bước 6: ứng dụng tái tạo/làm mờ)
-    # ==========================================================================
-    def reconstruct(self, X: np.ndarray, n_components: int | None = None) -> np.ndarray:
-        """
-        Chiếu X xuống không gian eigenface rồi chiếu ngược lại (tái tạo).
-
-        Công thức:  x̂ = U_k U_k^T (x - x̄) + x̄
-
-        Giải thích:
-          x̂ là hình chiếu của x lên không gian con span(u1,...,uk),
-          cộng lại với x̄ để trở về không gian ảnh gốc.
-          Khi k → p, x̂ → x (tái tạo hoàn hảo).
-
-        Tham số:
-            X            : shape (N, p) hoặc (p,) — ảnh gốc cần tái tạo.
-            n_components : dùng bao nhiêu eigenfaces để tái tạo.
-                          Nếu None, dùng tất cả k eigenfaces đang có.
-        """
-        single = X.ndim == 1
-        if single:
-            X = X.reshape(1, -1)
-
-        # Chọn k eigenfaces để tái tạo
-        k = n_components if n_components is not None else self.eigenfaces_.shape[1]
-        k = min(k, self.eigenfaces_.shape[1])
-        U_k = self.eigenfaces_[:, :k]                  # shape: (p, k)
-
-        # Chiếu xuống và chiếu ngược lại
-        X_centered      = X - self.mean_face_           # shape: (N, p)
-        coords          = X_centered @ U_k              # shape: (N, k)    — ŷ
-        X_reconstructed = coords @ U_k.T + self.mean_face_  # shape: (N, p) — x̂
-
-        # Clip về [0, 255] vì pixel không thể ra ngoài khoảng này
-        X_reconstructed = np.clip(X_reconstructed, 0, 255)
-
-        return X_reconstructed[0] if single else X_reconstructed
-
-    # ==========================================================================
     # PREDICT — Nhận dạng bằng 1-Nearest Neighbor
     # ==========================================================================
     def predict(self, X_test: np.ndarray) -> np.ndarray:

@@ -11,7 +11,7 @@
 | STT | Lệnh | Cú pháp | Ý nghĩa |
 |---|---|---|---|
 | 1 | `pip install` | `pip install -r requirements.txt` | Cài tất cả thư viện cần thiết (numpy, matplotlib, Pillow, opencv-python, streamlit) ghi trong file `requirements.txt`. |
-| 2 | `python` | `python main_projection.py` | Chạy pipeline đầy đủ (Bước 1 → 6): tải dữ liệu, huấn luyện, so sánh, vẽ biểu đồ. |
+| 2 | `python` | `python main_projection.py` | Chạy pipeline đầy đủ (Bước 1 → 4): tải dữ liệu, huấn luyện, so sánh, vẽ biểu đồ. |
 | 3 | `python` | `python manual_example.py` | Chạy ví dụ tính tay (Bước 5) trên 4 ảnh 3×3 pixel — in từng phép tính chi tiết. |
 | 4 | `python` (module) | `python src/dataloader.py` | Chạy thử riêng module đọc dataset để kiểm tra. |
 | 5 | `python` (module) | `python src/recognizer.py` | Chạy thử riêng class `OrthogonalFaceRecognizer` (huấn luyện + dự đoán nhanh). |
@@ -59,27 +59,26 @@
 | 9 | `np.unique` | `np.unique(y_train)` | Trả về các giá trị duy nhất (không trùng) — dùng đếm số người trong dataset. |
 | 10 | `np.bincount` | `np.bincount(labels)` | Đếm số lần xuất hiện của từng nhãn (chỉ với số nguyên không âm). |
 | 11 | `np.where` | `np.where(condition)[0]` | Trả về chỉ số các phần tử thoả điều kiện. |
-| 12 | `np.clip` | `np.clip(X, 0, 255)` | Cắt giá trị về trong khoảng [0, 255] — dùng cho pixel sau tái tạo. |
-| 13 | `np.cumsum` | `np.cumsum(ratios)` | Tổng tích lũy — dùng tính phương sai tích lũy. |
-| 14 | `np.searchsorted` | `np.searchsorted(cumvar, 0.95)` | Tìm vị trí chèn để giữ thứ tự — dùng tìm k đạt 95% phương sai. |
-| 15 | `np.arange` | `np.arange(1, n+1)` | Tạo dãy số `[1, 2, ..., n]`. |
-| 16 | `np.linalg.eigh` | `λ, V = np.linalg.eigh(L)` | **Phân rã trị riêng** của ma trận thực **đối xứng**. Trả về eigenvalues (tăng dần) và eigenvectors (mỗi cột). |
-| 17 | `np.linalg.norm` | `np.linalg.norm(u, axis=0)` | Tính độ dài (chuẩn) của vector. `axis=0` → norm theo từng cột. |
-| 18 | `np.dot` | `np.dot(a, b)` | Tích vô hướng giữa hai vector (hoặc nhân ma trận). |
-| 19 | `@` (matmul) | `A @ B` | Toán tử nhân ma trận (tương đương `np.matmul`). |
-| 20 | `.T` | `Phi.T` | Chuyển vị (transpose) — đổi hàng thành cột. |
-| 21 | `.reshape` | `vec.reshape(112, 92)` | Đổi shape mảng (không sao chép). Dùng đổi vector 1D → ảnh 2D. |
-| 22 | `.flatten` | `arr.flatten()` | Duỗi mảng nhiều chiều thành vector 1D. |
-| 23 | `.shape` | `X.shape` | Thuộc tính trả về kích thước (vd: `(400, 10304)`). |
-| 24 | `.ndim` | `X.ndim` | Số chiều của mảng (1, 2, 3, ...). |
-| 25 | `.copy` | `X.copy()` | Sao chép mảng (tránh tham chiếu chung). |
-| 26 | `.min` / `.max` | `arr.min()`, `arr.max()` | Giá trị nhỏ nhất / lớn nhất của mảng. |
-| 27 | `np.asarray` | `np.asarray(y)` | Ép kiểu sang ndarray (không sao chép nếu đã đúng). |
-| 28 | `np.array2string` | `np.array2string(M, separator=", ")` | Định dạng mảng thành chuỗi đẹp khi in. |
-| 29 | `np.round` | `np.round(arr, 3)` | Làm tròn đến `n` chữ số sau dấu phẩy. |
-| 30 | `np.set_printoptions` | `np.set_printoptions(precision=4)` | Cấu hình cách NumPy in mảng (làm tròn, độ rộng dòng). |
-| 31 | Broadcasting | `X - mean_face` | Tự động "phát thanh" mean_face để trừ cho từng hàng của X. |
-| 32 | Boolean indexing | `X_train[mask]` | Chỉ lấy các hàng mà `mask=True` (vd: lọc ảnh của một người). |
+| 12 | `np.cumsum` | `np.cumsum(ratios)` | Tổng tích lũy — dùng tính phương sai tích lũy. |
+| 13 | `np.searchsorted` | `np.searchsorted(cumvar, 0.95)` | Tìm vị trí chèn để giữ thứ tự — dùng tìm k đạt 95% phương sai. |
+| 14 | `np.arange` | `np.arange(1, n+1)` | Tạo dãy số `[1, 2, ..., n]`. |
+| 15 | `np.linalg.eigh` | `λ, V = np.linalg.eigh(L)` | **Phân rã trị riêng** của ma trận thực **đối xứng**. Trả về eigenvalues (tăng dần) và eigenvectors (mỗi cột). |
+| 16 | `np.linalg.norm` | `np.linalg.norm(u, axis=0)` | Tính độ dài (chuẩn) của vector. `axis=0` → norm theo từng cột. |
+| 17 | `np.dot` | `np.dot(a, b)` | Tích vô hướng giữa hai vector (hoặc nhân ma trận). |
+| 18 | `@` (matmul) | `A @ B` | Toán tử nhân ma trận (tương đương `np.matmul`). |
+| 19 | `.T` | `Phi.T` | Chuyển vị (transpose) — đổi hàng thành cột. |
+| 20 | `.reshape` | `vec.reshape(112, 92)` | Đổi shape mảng (không sao chép). Dùng đổi vector 1D → ảnh 2D. |
+| 21 | `.flatten` | `arr.flatten()` | Duỗi mảng nhiều chiều thành vector 1D. |
+| 22 | `.shape` | `X.shape` | Thuộc tính trả về kích thước (vd: `(400, 10304)`). |
+| 23 | `.ndim` | `X.ndim` | Số chiều của mảng (1, 2, 3, ...). |
+| 24 | `.copy` | `X.copy()` | Sao chép mảng (tránh tham chiếu chung). |
+| 25 | `.min` / `.max` | `arr.min()`, `arr.max()` | Giá trị nhỏ nhất / lớn nhất của mảng. |
+| 26 | `np.asarray` | `np.asarray(y)` | Ép kiểu sang ndarray (không sao chép nếu đã đúng). |
+| 27 | `np.array2string` | `np.array2string(M, separator=", ")` | Định dạng mảng thành chuỗi đẹp khi in. |
+| 28 | `np.round` | `np.round(arr, 3)` | Làm tròn đến `n` chữ số sau dấu phẩy. |
+| 29 | `np.set_printoptions` | `np.set_printoptions(precision=4)` | Cấu hình cách NumPy in mảng (làm tròn, độ rộng dòng). |
+| 30 | Broadcasting | `X - mean_face` | Tự động "phát thanh" mean_face để trừ cho từng hàng của X. |
+| 31 | Boolean indexing | `X_train[mask]` | Chỉ lấy các hàng mà `mask=True` (vd: lọc ảnh của một người). |
 
 ---
 
@@ -165,10 +164,9 @@
 | 4 | $L v = \lambda v$ | `λ, V = np.linalg.eigh(L)` | Phân rã trị riêng. |
 | 5 | $u_i = \frac{\Phi^T v_i}{\|\Phi^T v_i\|}$ | `U = (Phi.T @ V) / norms` | Khôi phục eigenfaces (chuẩn hóa). |
 | 6 | $\hat{y} = U^T(x-\bar{x})$ | `proj = (X - mean_face) @ U` | Phép chiếu vuông góc xuống không gian eigenface. |
-| 7 | $\hat{x} = U_k U_k^T(x-\bar{x}) + \bar{x}$ | `coords @ U_k.T + mean_face` | Tái tạo ảnh (chiếu rồi chiếu ngược). |
-| 8 | $d = \|\hat{y} - \hat{y}_i\|_2$ | `np.sqrt(np.sum((p - q)**2))` | Khoảng cách Euclidean. |
-| 9 | $\arg\min_i d_i$ | `np.argmin(distances)` | Chọn láng giềng gần nhất (1-NN). |
-| 10 | $U^T U = I$ | `U.T @ U` (kết quả ≈ I) | Kiểm tra hệ cơ sở trực chuẩn. |
+| 7 | $d = \|\hat{y} - \hat{y}_i\|_2$ | `np.sqrt(np.sum((p - q)**2))` | Khoảng cách Euclidean. |
+| 8 | $\arg\min_i d_i$ | `np.argmin(distances)` | Chọn láng giềng gần nhất (1-NN). |
+| 9 | $U^T U = I$ | `U.T @ U` (kết quả ≈ I) | Kiểm tra hệ cơ sở trực chuẩn. |
 
 ---
 
@@ -190,7 +188,7 @@ streamlit run web/streamlit_app.py
 
 Kết quả sau khi chạy `main_projection.py`:
 - Báo cáo so sánh được in ra terminal.
-- 8 biểu đồ `.png` được lưu trong thư mục `outputs/`.
+- 5 biểu đồ `.png` được lưu trong thư mục `outputs/`.
 
 ---
 

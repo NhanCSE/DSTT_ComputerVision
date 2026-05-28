@@ -452,5 +452,4 @@ if __name__ == "__main__":
 
     print("\n" + "=" * 65)
     print("  Bước 5 hoàn tất.")
-    print("  Sẵn sàng cho Bước 6 (Ứng dụng mở rộng: tái tạo & làm mờ ảnh).")
     print("=" * 65)

@@ -1,7 +1,7 @@
 """
 main_projection.py — Entry point toàn bộ dự án
 ================================================
-Chạy file này để thực hiện đầy đủ pipeline từ Bước 1 đến Bước 6:
+Chạy file này để thực hiện đầy đủ pipeline từ Bước 1 đến Bước 4:
 
     python main_projection.py
 
@@ -14,7 +14,6 @@ Cấu trúc pipeline:
     Bước 2 — Huấn luyện OrthogonalFaceRecognizer (Eigenfaces)
     Bước 3 — Tìm k tối ưu + so sánh với Baseline Pixel-KNN
     Bước 4 — Sinh biểu đồ cho báo cáo và slide
-    Bước 6 — Ứng dụng mở rộng: tái tạo ảnh và làm mờ ảnh
     (Bước 5 được minh họa riêng: chạy  python manual_example.py)
 """
 
@@ -29,12 +28,11 @@ _ROOT = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, _ROOT)
 
 from src.dataloader  import (download_orl_dataset, load_orl_dataset,
-                              print_dataset_info, IMG_HEIGHT, IMG_WIDTH)
+                              print_dataset_info)
 from src.recognizer  import OrthogonalFaceRecognizer
 from src.baseline    import PixelKNNRecognizer
 from src.evaluator   import (compare_k_values, run_full_comparison, accuracy)
 from src.visualizer  import plot_all
-from extended_applications import run_extended_applications
 
 
 # ==============================================================================
@@ -155,27 +153,6 @@ def main() -> None:
     print(f"  Thời gian: {_elapsed(t0)}")
 
     # ------------------------------------------------------------------
-    # BƯỚC 6 — Ứng dụng mở rộng (dùng recognizer với k lớn hơn để đủ eigenfaces)
-    # ------------------------------------------------------------------
-    _section("BƯỚC 6 — Ứng dụng mở rộng: Tái tạo & Làm mờ ảnh")
-    t0 = time.perf_counter()
-
-    # Huấn luyện lại với k=150 để có đủ eigenfaces cho mọi thí nghiệm tái tạo
-    k_extended = min(150, X_train.shape[0] - 1)
-    print(f"  Huấn luyện lại với k = {k_extended} cho ứng dụng mở rộng...")
-    rec_extended = OrthogonalFaceRecognizer(n_components=k_extended)
-    rec_extended.fit(X_train, y_train)
-
-    run_extended_applications(
-        recognizer = rec_extended,
-        X_test     = X_test,
-        y_test     = y_test,
-        img_shape  = (IMG_HEIGHT, IMG_WIDTH),
-        output_dir = OUTPUT_DIR,
-    )
-    print(f"  Thời gian: {_elapsed(t0)}")
-
-    # ------------------------------------------------------------------
     # TÓM TẮT CUỐI
     # ------------------------------------------------------------------
     _section("TÓM TẮT KẾT QUẢ")
@@ -191,10 +168,7 @@ def main() -> None:
     ├── eigenfaces.png
     ├── recognition.png
     ├── accuracy_vs_k.png
-    ├── variance_ratio.png
-    ├── app1_reconstruction.png
-    ├── app1_quality_curve.png
-    └── app2_blurring.png
+    └── variance_ratio.png
 
   Ví dụ tính tay (Bước 5)   : python manual_example.py
   Tổng thời gian pipeline    : {_elapsed(t_total)}
